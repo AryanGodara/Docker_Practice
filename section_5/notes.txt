@@ -1,0 +1,137 @@
+1. Create a mongo container :-
+docker run --name mongodb --rm -d -p 27017:27017 mongo
+(before running this, remove all the previous mongo containers)
+
+2. To dockerize the Node app (backend), create a Docekrfile in the backend directory
+Create image: docker build -t goals-node .\backend\
+    (Be in the /node_app/ directory for this one)
+
+2.1 Now, create and run a container for the image you just created
+
+docker run --name goals-backend --rm -d goals-node
+
+(For this container to be able to connect to the mongodb container, which is running on our
+host system, we changed 'localhost' to 'host.docker.internal' on line 87 of app.js)
+    (REBUILD THE IMAGE, AS THE SOURCE CODE WAS JUST CHANGED)
+
+BUT THIS WILL NOT BE ABLE TO CONNECT TO THE FRONTEND 'REACT' APP, FOR THAT WE HAVE TO 
+EXPOSE THE CORRECT PORT :-
+
+docker run --name goals-backend --rm -d -p 80:80 goals-node
+
+
+3. Dockerizing the React app (frontend), create a Dockerfile in the frontend directory
+Create image: docker build -t goals-react .\frontend\
+    (Be in the /node_app/ directory for this one)
+    (YOU'LL GET SOME WARNINGS, IGNORE THEM FOR NOW LOL)
+
+3.1 Now, create and run a container for the image you just created
+
+docker run --name goals-frontend --rm -d -p 3000:3000 goals-react
+    (THIS WILL ALSO CRASH UPON STARTING)
+    The problem is specific to this react project, as we have to run it in interactive mode
+    (-it) so that we don't just start it, and be done with it. But instead, we have to let
+    the container know that we want to be able to enter commands and react with it.
+    (We don't HAVE to do it, but we have to write it anyway)
+
+docker run --name goals-frontend --rm -p 3000:3000 -it goals-react
+
+
+// At this point, I closed all the containers, to run them again, inside a single network
+
+4. Now, we create a new network called 'goals-net'
+docker network create goals-net
+
+5. Then, we run mongo db backend container
+docker run --name mongodb --rm -d --network goals-net mongo
+
+6. Then, run the backend container
+docker run --name goals-backend --rm -d --network goals-net goals-node
+6.1 But now, we'll have to change how we connect to mongodb (line 87)
+    'change host.docker.internal' to 'mongodb'      (use the name of the container directly)
+6.2 After 6.1, we'll need to rebuild the image
+    docker build -t goals-node .\backend\
+6.3 Now, we can finally use docker run, to run the container, with the above command
+
+7. Finally, we now run the frontend container
+docker run --name goals-frontend --network goals-net --rm -p 3000:3000 -it goals-react
+7.1 Now, for this container to be able to connect to the backend, we'll need to change
+    "await fetch('http://localhost/goals')" to "await fetch('http://goals-backend/goals')"
+        ('goals-backend' is the name of the backend container)
+7.2 After 7.1, we'll need to rebuild the image
+    docker build -t goals-react .\frontend\
+7.3 Now, we can finally use docker run, to run the container, with the above comand
+
+
+
+8. Now, our site may have lost, but we still get the error: 
+    "something went wrong, failed to fetch"
+This is because, fetch connects to the backend container as they are on the same network.
+The problem is, that the react code is designed to run on the container, but we're running
+the react app on our browser. So, it doesn't know what to do with fecth (goals-backend), as
+the browser can't connect with the backend container.
+
+8.1 So, we must reverse 7.1, and go back to fetch(localhost) in our frontent/App.js
+8.2 Now, we need to ensure that on localhost, these end points are still reachable.
+    And that simply means that, we still need to publish port 80 on the backend application,
+    so that, that application is also still available on localhost, because our frontend
+    application needs that access.
+    (This is all because of the fact that react applications have browser side javascript code
+     and not JavaScript code that runs inside of the docker container.)
+
+8.3 Finally, we rebuild the goals-react image
+8.4 Final Final, restart the frontend container, and make some minor changes
+    docker run --name goals-frontend --rm -p 3000:3000 -it goals-react
+We don't need the --network option here anymore, because, this is an option which doesn't make
+sense here anyways, because the part the runs in the container, the development server, doesn't
+care about the network, it doesn't interact with the node API or the database. And tha part
+that would interact with the API, isn't executed in the docker environment (it's executed inside
+the browser)
+
+8.5 Final, I swear, now we have to restart the backend docker container, but this time, make
+    sure that we still publish port 80
+docker run --name goals-backend --rm -d -p 80:80 --network goals-net goals-node
+
+
+LECTURE 7: Adding Data Persistence to MongoDB with Volumes
+
+
+Currently if we stop and rerun the mongo db container, all the data in our database gets erased.
+To resolve this issue, we add a volume to the docker run command for mongo container
+
+docker run --name mongodb -v data:/data/db --rm -d --network goals-net mongo
+(named volume data: to data/db   , we found this path in the container's documentation)
+
+Now, we need to add security layer to this container, by adding environment variables :-
+docker run --name mongodb -v data:/data/db --rm -d --network goals-net -e MONGO_INITDB_ROOT_USERNAME=aryan -e MONGO_INITDB_ROOT_PASSWORD=secret mongo
+(we added username: 'aryan' , password 'secret')
+
+Now, we get another error, react can't connect ot the database, as it's password protected
+so, we change 'mongodb://mongodb:27017//course-goals' to 
+    'aryan:secret@mongodb://mongodb:27017/course-goals?authSource=admin'
+(rebuild node-backend image, and restart the node container to see the effects) :-
+docker build -t goals-node .\backend\
+docker run -d -p 80:80 --name goals-backend --network goals-net goals-node
+
+
+
+
+LECTURE 8: VOLUMES, BIND MOUNDS, AND POLISHING FOR THE NODE JS container
+For the backend container, we need to make sure that the data persists for the log files,
+and we wanna have live source code updates (w/o having to reubild image and rerun container)
+
+So, we run the backend container, after adding volume and bind mounts to store the log files
+docker run -d -p 80:80 --name goals-backend -v "C:\Users\Administrator\Desktop\Docker_Related\section_5\node_app\backend:/app" -v logs:/app/logs -v /app/node_modules --network goals-net goals-node
+
+
+It's getting very very hectic now, so to make sure everything works, just copy the source code.
+And move on to the next section, about docker compose
+
+
+So, the three final docker run commands are :-
+1. frontend :-
+docker run -v C:/Users/Administrator/Desktop/Docker_Related/section_5/node_app/src --name goals-frontend --rm -p 3000:3000 -it goals-react
+2. backdend :-
+docker run --name goals-backend -v C:/Users/Administrator/Desktop/Docker_Related/section_5/node_app/backend:/app -v logs:/app/logs -v /app/node_modules -e MONGODB_USERNAME=aryan -d --rm -p 80:80 --network goals-net goals-node
+3. mongodb (database) :-
+docker run --name mongodb -v data:/data/db --rm -d --network goals-net -e MONGO_INITDB_ROOT_USERNAME=aryan -e MONGO_INITDB_ROOT_PASSWORD=secret mongo

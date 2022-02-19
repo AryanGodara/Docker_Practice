@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+
+  mongodb:
+    image: 'mongo'
+    volumes:
+      - data:/data/db
+    # environment:
+      # MONGO_INITDB_ROOT_USERNAME: aryan   One way to do it
+      # - MONGO_INITDB_ROOT_USERNAME=aryan
+      # - MONGO_INITDB_ROOT_PASSWORD=secret
+      # We'll read from an .env file instead
+    env_file:
+      - ./env/mongo.env
+    # We don't really need to add our own network, as compose creates a default network itself
+      # networks:
+      #   - goals-net
+    # Force 'mongodb' to be the name of the container
+    # container_name: mongodb
+
+  backend:
+    # image: 'goals-node' 
+  # Instead of specifying an already built image, we can also provide docker-compose all the
+  # steps that it needs to build the image (give parent folder of Dockerfile)
+    build: ./backend  
+    # (This was the short version) (Let's try the long version :-)
+    # build:
+    #   context: ./backend
+    #   dockerfile: Dockerfile
+    ports:
+      - '80:80'
+    volumes:
+      - logs:/app/logs
+      - ./backend:/app
+      - /app/node_modules
+    env_file:
+      - ./env/backend.env
+    depends_on:
+      - mongodb
+
+  frontend:
+    build: ./frontend
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./frontend/src:/app/src
+# Now, the only thing left is that we have to run this container in -it (interactive mode)
+    stdin_open: true
+      # This service need an open input connection
+    tty: true
+      # -it = -i + -t (-t == tty i.e., a pseudo terminal)
+    depends_on:
+      - backend
+
+# Any named volume(s) we're using in our services, have to be listed here (their names)
+# Now, if we use the same volume name, for different named volumes, then that named volume will
+# be shared among all of the containers, for whom it was mentioned
+volumes:
+  data:
+  logs:

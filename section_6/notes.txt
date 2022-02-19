@@ -1,0 +1,15 @@
+First, get into the directory where the docker-compose file is:
+Then type: docker-compose up OR docker-compose up -d (To run it in detached mode)
+To stop it, type: docker-compose down AND docker-compose down -v (To also delete the volumes)
+(It'll automatically pull and build all the images required, and run the containers)
+
+Remember, this will not work on windows, because we're using bind mounts, for backend logs
+and these don't work for windows file paths, only for linux file system paths
+
+type: docker-up --help, in the list you'll see the following option:-
+--build: Build images before starting containers.
+(eg.: we want to FORCE compose to rebuild the images)
+
+In order to build any of the 'custom' images inside your docker-compose.yaml file, type :-
+docker-compose build
+This will build the images, and won't start any containers.
