@@ -1,0 +1,33 @@
+docker-compose run --rm composer create-project --prefer-dist laravel/laravel .
+
+(This is the first command that we run, when we've build the first four out of the six
+containers)
+(This is sort of like a test run, to see that the things that we've done so far are working)
+
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=homestead
+DB_USERNAME=homestead
+DB_PASSWORD=secret
+
+(make these changes inside the .env file in the src folder)
+
+Now, to run our services, and test this application, we write :-
+docker-compose up -d server php mysql
+(We only want to run these three application services at this point)
+
+But, naming all the individual services is quite tiresome. It'd be better if we could just 
+mention the 'server' service, and it would automatically run the other ones with it.
+
+We can do this, by adding dependencies to the 'server' service.
+
+Now, we just need to write :-
+dock-compose up -d server
+
+We can add an extra option to the up command: docker-compose at this point, doesn't rebuild
+the images each time we make changes to the Dockerfile (it just takes the version currently
+stored in the image cache). So, we need to force docker-compose to reevaluate our dockerfiles
+and rebuild our images, we should also add the --build option here
+
+docker-compose up -d --build server
