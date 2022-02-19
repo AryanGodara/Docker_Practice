@@ -1,0 +1,95 @@
+" docker exec " commands allows us to execute certain commands inside of a running container,
+besides the default command, that this container executes.
+SYNTAX : " docker exec running_Container_s_Name the_command "
+eg.: " docker exec container_name npm init " (To run the command npm init inside the container)
+
+This way, we can run the 'npm init' command, without node and npm being installed on our
+computer, since we're running it inside a container.
+
+With docker exec, we can execute commands in a running container, without interrupting the
+default command (which starts when the container starts). 
+
+
+We can also override the default
+command too.
+eg.: docker run -it node npm init
+(docker run, we know the use of this)
+(-it to run the container in interactive mode)
+(node, the official node image on dockerhub)
+(npm init, the command that we want to override the defualt command)
+
+
+
+Part 2 : Building our first utility container :--
+
+Now, for this, we'll need a custom image. And, for that, we'll create a Dockerfile
+Then, we build the dockerfile, name it : node-util    And then run a container from it :-
+
+docker run -it -v "C:\Users\Administrator\Desktop\Docker_Related\section_7:/app" node-util npm init
+
+But, this'll just create a node project folder inside the running container. Not on our local
+system. But we want to mirror it to our local folder, so that what we create in the container 
+is also available here, on our host machine. So that we can create a project on our host 
+machine with the help of a container. (W/o having to install node globally on our system).
+This is the use of having a utility container. We can use it to execute something which has 
+an effect on the host machine, without having to install all the extra tools on the host 
+machine.
+(We'll use a bind mount, with -v in the command for this)
+
+
+AFTER running the above command, you'll see that a package.json file has been created on our 
+local system, without ever having to install node on our local system.
+
+
+
+Part 3: Utilizing ENTRYPOINT
+We add an ENTRYPOINT line in our Dockerfile. Now, it's very similar to the CMD ["executable"]
+line, but it has one difference.
+If we add a command after the image name on docker run (like we did above for npm init), then
+this command (npm init) overrides the default command of the image (specified using CMD[] in
+the Dockerfile). But, it's different with ENTRYPOINT.
+In this case, whatever command you enter after your image name in the docker run command, gets
+appended after the entrypoint (instead of just overriding it).
+
+eg.: In our Dockerfile, we wrote ENTRYPOINT["npm"]. So that each command that we now write
+from the terminal will get appended to npm.
+Two benefits: 1. We don't have to repeatedly write npm before each command now.
+2. This restricts the container, since we want it to have limited usability. Things are safer 
+and simpler this way.
+
+So, we rebuild the image, and run a container :-
+
+docker build -t mynpm .
+docker run -it -v "C:\Users\Administrator\Desktop\Docker_Related\section_7:/app" mynpm init
+(Notice we wrote just 'init', not 'npm init')
+try this for npm init, and npm install (we get package.json and package-lock.json)
+
+docker run -it -v "C:\Users\Administrator\Desktop\Docker_Related\section_7:/app" mynpm install express --save
+(to install the express dependency)
+
+
+
+Part 4: Using Docker Compose
+Firstly, we'll have to add a docker-compose.yaml file like always
+
+docker-compose up
+(This alone doesn't work, as we haven't specified any defualt command. It's just 'npm' which
+doesn't do anything) So, we'll write :-
+docker-compose up init
+(!! But this fails. ERROR: No such service: init)
+docker-compose run init
+(docker-compose run, allows us a run a single service from this yaml file, if we had multiple
+services by the service name. And then we write the command that we want to append after the
+entrypoint of our choice)
+docker-compose run npm init
+(This isn't 'npm' init, but container 'npm', command to append = 'init')
+
+docker-compose run npm init
+(when using docker-compose up, we can use down to delete the created containers.)
+(But, there is no up and down with docker-compse run)
+(The container starts, does it's thing. And once the command is finished, it shuts down.
+But with run, it's not removed automatically)
+docker-compose run --rm npm init   (So, we use the --rm command here)
+
+
+(docker container prune : To remove all the unused containers)
