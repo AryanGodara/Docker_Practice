@@ -1,3 +1,6 @@
+cd .\Desktop\Docker_Related\section_08\
+
+
 docker-compose run --rm composer create-project --prefer-dist laravel/laravel .
 
 (This is the first command that we run, when we've build the first four out of the six
@@ -31,3 +34,10 @@ stored in the image cache). So, we need to force docker-compose to reevaluate ou
 and rebuild our images, we should also add the --build option here
 
 docker-compose up -d --build server
+
+
+After this, we'll complete the docker-compose.yaml file (add npm and artian services)
+
+Now, when the above three services are running (ie, after running the docker-compose up command)
+run the following :-
+docker-compose run --rm artisan migrate
